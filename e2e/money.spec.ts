@@ -1,6 +1,8 @@
 // Slice 3: exceptions, follow-ups and money.
 import { expect, setPersona, test } from "./fixtures";
 
+const PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
 test.describe("Slice 3 — exceptions and money", () => {
   test("M-01 external delay: validation, exception + follow-up task, queue visibility, resolution", async ({ page, errors }) => {
     await page.goto("/operations/shipments/shp-0103?tab=tasks");
@@ -40,6 +42,11 @@ test.describe("Slice 3 — exceptions and money", () => {
     await page.getByTestId("confirm-notify").click();
     await expect(page.getByText("Use at most two decimal places.")).toBeVisible();
     await page.getByTestId("notify-amount").fill("6,800.00");
+    // proof of payment: a text file is refused, a screenshot is accepted
+    await page.getByTestId("notify-pop").setInputFiles({ name: "note.txt", mimeType: "text/plain", buffer: Buffer.from("paid") });
+    await page.getByTestId("confirm-notify").click();
+    await expect(page.getByTestId("notify-pop-error")).toContainText("PDF, PNG or JPEG");
+    await page.getByTestId("notify-pop").setInputFiles({ name: "eft-screenshot.png", mimeType: "image/png", buffer: Buffer.from(PNG_1PX, "base64") });
     await page.getByTestId("confirm-notify").click();
     await expect(page.getByTestId("client-notifications")).toContainText("Awaiting verification");
     await expect(page.getByTestId("client-funding-row")).toContainText("Payment notified — unverified");
@@ -49,6 +56,11 @@ test.describe("Slice 3 — exceptions and money", () => {
     await expect(page.getByTestId("fig-USD-notified")).toHaveText("USD 6,800.00");
     await expect(page.getByTestId("fig-USD-verified")).toHaveText("USD 0.00");
     await expect(page.getByTestId("fig-USD-held")).toHaveText("USD 0.00");
+    // finance can open the client's proof while verifying; it is evidence, not funds
+    await page.getByTestId("notification-row").getByTestId("view-pop").click();
+    await expect(page.getByTestId("document-viewer")).toContainText("image/png");
+    await expect(page.getByRole("img", { name: "eft-screenshot.png" })).toBeVisible();
+    await page.getByRole("button", { name: "Close dialog" }).click();
     await page.getByTestId("verify-payment").click();
     await page.getByTestId("verify-bank-ref").fill("BNK-0103-7781");
     await page.getByTestId("verify-form-submit").dblclick();

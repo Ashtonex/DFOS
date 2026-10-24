@@ -36,7 +36,7 @@ function useNotificationItems(): Item[] {
   }
   const k = kpiCounts(rows);
   return [
-    { label: "Documents awaiting review", href: "/operations/documents", count: s.documents.filter((d) => d.status === "pending_review").length },
+    { label: "Documents awaiting review", href: "/operations/documents", count: s.documents.filter((d) => d.status === "pending_review" && d.docType !== "proof_of_payment").length },
     { label: "Payment notifications to verify", href: "/operations/finance", count: s.notifications.filter((n) => n.status === "notified").length },
     { label: "Overdue follow-up tasks", href: "/operations/tasks?filter=overdue", count: s.tasks.filter((t) => t.status === "open" && isOverdue(t.dueDate, today)).length },
     { label: "Unassigned requests", href: "/operations/shipments?kpi=unassigned", count: k.unassigned },

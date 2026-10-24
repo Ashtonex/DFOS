@@ -7,13 +7,14 @@ import { availableClientFunds, totalsList, type CurrencyTotals } from "@/domain/
 import { DISBURSEMENT_CATEGORY_LABEL } from "@/domain/labels";
 import { formatBasisPoints, formatMoney, toMajorInput } from "@/domain/money";
 import { todayISO, addDaysISO } from "@/domain/rules";
-import { CURRENCIES, DISBURSEMENT_CATEGORIES, type Currency, type DisbursementCategory, type PaymentNotification, type Receipt } from "@/domain/types";
+import { CURRENCIES, DISBURSEMENT_CATEGORIES, type Currency, type DisbursementCategory, type PaymentNotification, type Receipt, type ShipmentDocument } from "@/domain/types";
 import type { ShipmentDetail } from "@/data/repository";
 import { useAction, useViewer } from "@/lib/hooks";
 import { canWrite } from "@/lib/persona";
 import { TOPICS } from "@/lib/queryKeys";
 import { ActionDialog, requireAmount } from "../forms";
-import { NotificationStatus } from "../client/ClientPayments";
+import { NotificationStatus, PopLink } from "../client/ClientPayments";
+import { DocumentViewer } from "../documents/DocumentViewer";
 import { FundingBadge, Money } from "../status";
 import { useToast } from "../toast";
 import { Badge, Button, Card, CardHeader, EmptyState, SelectField, TableWrap, TextAreaField, TextField, formatDate, td, th } from "../ui";
@@ -91,6 +92,7 @@ export function FinanceTab({ d }: { d: ShipmentDetail }) {
     | { kind: "cost" }
   >(null);
   const close = () => setDialog(null);
+  const [viewing, setViewing] = useState<ShipmentDocument | null>(null);
 
   const createFunding = useAction((u, a: { input: repo.FundingRequestInput; opId: string }) => repo.createFundingRequest(u, a.input, a.opId), TOPICS.finance, sid);
   const cancelFunding = useAction((u, a: { id: string; reason: string }) => repo.cancelFundingRequest(u, a.id, a.reason), TOPICS.finance, sid);
@@ -171,6 +173,7 @@ export function FinanceTab({ d }: { d: ShipmentDetail }) {
                 <th className={th}>Notified</th>
                 <th className={th}>For</th>
                 <th className={th}>Client ref</th>
+                <th className={th}>Proof</th>
                 <th className={th}>Paid on</th>
                 <th className={th}>Status</th>
                 <th className={th}><span className="sr-only">Actions</span></th>
@@ -186,6 +189,9 @@ export function FinanceTab({ d }: { d: ShipmentDetail }) {
                       : d.fundingRequests.find((f) => n.target.kind === "funding_request" && f.request.id === n.target.fundingRequestId)?.request.purpose}
                   </td>
                   <td className={td}>{n.payerReference}</td>
+                  <td className={td}>
+                    <PopLink n={n} documents={d.documents} onView={setViewing} />
+                  </td>
                   <td className={`${td} whitespace-nowrap`}>{formatDate(n.paidOn)}</td>
                   <td className={td}><NotificationStatus n={n} /></td>
                   <td className={td}>
@@ -442,6 +448,10 @@ export function FinanceTab({ d }: { d: ShipmentDetail }) {
               <p className="text-sm text-slate-700">
                 Client notified <strong>{formatMoney(dialog.n.amount, dialog.n.currency)}</strong> (ref {dialog.n.payerReference}, paid {formatDate(dialog.n.paidOn)}). Record what actually arrived.
               </p>
+              <div className="flex flex-wrap items-center gap-2 rounded bg-slate-50 px-3 py-2 text-sm">
+                <PopLink n={dialog.n} documents={d.documents} onView={setViewing} />
+                <span className="text-xs text-slate-500">Proof of payment is the client&apos;s evidence, not confirmation. Check the bank statement.</span>
+              </div>
               <TextField label={`Amount received (${dialog.n.currency})`} inputMode="decimal" required value={v.amount} onChange={(x) => set({ amount: x.target.value })} error={e.amountReceived} />
               <TextField label="Bank statement reference" required value={v.bankReference} onChange={(x) => set({ bankReference: x.target.value })} error={e.bankReference} data-testid="verify-bank-ref" />
               <TextField label="Date received" type="date" required max={todayISO()} value={v.receivedOn} onChange={(x) => set({ receivedOn: x.target.value })} error={e.receivedOn} />
@@ -551,6 +561,7 @@ export function FinanceTab({ d }: { d: ShipmentDetail }) {
           </>
         )}
       />
+      <DocumentViewer doc={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }

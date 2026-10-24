@@ -27,7 +27,7 @@ Stages advance **one step at a time**:
 |---|---|---|
 | Preparation | An officer is assigned | No |
 | Ready for submission | Officer assigned; every required document accepted | **Readiness only:** an Operations Supervisor may override, with a recorded reason |
-| Submitted | Officer assigned; customs submission reference recorded (manually recorded, not integrated) | No |
+| Submitted | Officer assigned. DFOS **automatically assigns its own lodgement reference** (`DF-LDG-YYYY-NNNN`, sequential and never reused). The customs-issued reference is **optional** at this point: it can be recorded now or later via *Edit details*, and shows as "Awaited from customs" until then | No |
 | Released | Accepted **release evidence** document attached | No |
 | In delivery | Officer assigned | No |
 | Delivered | Accepted **proof of delivery** attached | No |
@@ -65,6 +65,7 @@ An unpaid service-invoice balance blocks closure by default. An Operations Super
 
 - Amounts are stored as integer minor units with an explicit currency. Seeded data is in USD, and one file includes ZAR port charges to demonstrate currency separation. **Currencies are never aggregated together.**
 - A **payment notification** is the client's *claim* that it has paid. It never counts as available funds.
+- When notifying, the client may attach **proof of payment** (POP): a PDF or a PNG/JPEG screenshot, up to 5 MB, checked by content signature. POP is evidence only and never counts as funds. Finance views it while verifying. It is marked accepted when the notification is verified and rejected (with the reason) when it is not matched. It is reviewed through its notification, not through the document-review queue.
 - A **verified receipt** is created only when finance confirms the money arrived (amount received + bank reference + date). The verifier may record a different amount from the one notified. A notification can be verified once only, and each bank reference can be used once only.
 - **Client funds held** = verified client-fund receipts − disbursements (per currency, per file). This is client money, **not revenue**.
 - **Disbursements** draw on client funds held in the same currency. Paying more than is held is blocked. An Operations Supervisor may **pre-fund** with a recorded reason, and the shortfall becomes an **unrecovered disbursement**. A refund to the client can never exceed the funds held.

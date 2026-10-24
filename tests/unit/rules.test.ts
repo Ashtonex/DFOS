@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeFinance } from "@/domain/finance";
 import { checkUpload } from "@/domain/files";
-import { computeReadiness, decideTransition, transitionBlockers, type TransitionContext } from "@/domain/rules";
+import { computeReadiness, decideTransition, nextLodgementReference, transitionBlockers, type TransitionContext } from "@/domain/rules";
 import type { DocumentRequirement, Shipment, ShipmentDocument, Stage } from "@/domain/types";
 import { makePdf } from "@/data/samplePdf";
 
@@ -54,12 +54,17 @@ describe("stage transitions", () => {
       overrideUsed: true,
     });
   });
-  it("submission requires an officer and a submission reference (not overridable)", () => {
+  it("submission requires an officer (not overridable); the customs reference is optional", () => {
     const c = ctx(ship("ready_for_submission", { assignedOfficerId: null }));
-    expect(transitionBlockers(c, { to: "submitted" }).map((x) => x.code).sort()).toEqual(["no_officer", "submission_reference"]);
+    expect(transitionBlockers(c, { to: "submitted" }).map((x) => x.code)).toEqual(["no_officer"]);
+    expect(decideTransition(c, { to: "submitted", override: true, reason: "x" }, "operations_supervisor").allowed).toBe(false);
     const ok = ctx(ship("ready_for_submission"));
-    expect(transitionBlockers(ok, { to: "submitted", submissionReference: "REF-1" })).toEqual([]);
-    expect(decideTransition(ok, { to: "submitted", override: true, reason: "x" }, "operations_supervisor").allowed).toBe(false);
+    expect(transitionBlockers(ok, { to: "submitted" })).toEqual([]);
+  });
+
+  it("generates sequential DFOS lodgement references and never reuses one", () => {
+    expect(nextLodgementReference([], 2026)).toBe("DF-LDG-2026-0001");
+    expect(nextLodgementReference(["DF-LDG-2026-0007", null, undefined, "DF-LDG-2026-0003", "DF-LDG-2025-0099"], 2026)).toBe("DF-LDG-2026-0008");
   });
   it("release requires release evidence; delivery requires proof of delivery", () => {
     expect(transitionBlockers(ctx(ship("submitted")), { to: "released" })[0].code).toBe("release_evidence");

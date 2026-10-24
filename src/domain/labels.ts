@@ -54,6 +54,7 @@ export const DOC_TYPE_LABEL: Record<DocType, string> = {
   client_authority: "Client authority to act",
   release_evidence: "Release evidence",
   proof_of_delivery: "Proof of delivery",
+  proof_of_payment: "Proof of payment",
   other: "Other",
 };
 

@@ -1,14 +1,16 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { Send } from "lucide-react";
+import { Paperclip, Send } from "lucide-react";
 import * as repo from "@/data/repository";
 import { DomainError, errorMessage } from "@/data/errors";
 import { fundingRequestStatus, totalsList, verifiedForRequest } from "@/domain/finance";
 import { DISBURSEMENT_CATEGORY_LABEL } from "@/domain/labels";
 import { parseMoney, toMajorInput, formatMoney } from "@/domain/money";
-import { todayISO } from "@/domain/rules";
-import type { Currency, PaymentNotification } from "@/domain/types";
+import { POP_TYPES, todayISO } from "@/domain/rules";
+import { checkUpload } from "@/domain/files";
+import type { Currency, PaymentNotification, ShipmentDocument } from "@/domain/types";
+import { DocumentViewer } from "../documents/DocumentViewer";
 import type { ShipmentDetail } from "@/data/repository";
 import { useDfosMutation, useOpId, useWorkspace } from "@/lib/hooks";
 import { TOPICS } from "@/lib/queryKeys";
@@ -37,11 +39,13 @@ export function NotifyPaymentModal({ t, onClose }: { t: NotifyTarget | null; onC
   const [paidOn, setPaidOn] = useState(todayISO());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [pop, setPop] = useState<File | null>(null);
   const [opId, renewOpId] = useOpId();
   const [lastTarget, setLastTarget] = useState<NotifyTarget | null>(null);
   if (t !== lastTarget) {
     setLastTarget(t);
     if (t) {
+      setPop(null);
       setAmount(t.suggested > 0 ? toMajorInput(t.suggested) : "");
       setRef("");
       setPaidOn(todayISO());
@@ -50,7 +54,7 @@ export function NotifyPaymentModal({ t, onClose }: { t: NotifyTarget | null; onC
     }
   }
   const notify = useDfosMutation({
-    mutationFn: (p, v: repo.NotifyInput) => repo.notifyPayment(p.userId, v, opId),
+    mutationFn: (p, v: { input: repo.NotifyInput; pop?: repo.ProofOfPayment }) => repo.notifyPayment(p.userId, v.input, opId, v.pop),
     topics: TOPICS.finance,
     shipmentId: () => t?.shipmentId,
   });
@@ -59,12 +63,20 @@ export function NotifyPaymentModal({ t, onClose }: { t: NotifyTarget | null; onC
     if (!t || notify.isPending) return;
     const parsed = parseMoney(amount);
     if (!parsed.ok) return setErrors({ amount: parsed.error });
+    let popFile: repo.ProofOfPayment | undefined;
+    if (pop) {
+      const data = await pop.arrayBuffer();
+      const check = checkUpload(pop.name, data);
+      const error = !check.ok ? check.error : !POP_TYPES.includes(check.mimeType) ? "Attach a PDF, PNG or JPEG (e.g. a bank confirmation or screenshot)." : null;
+      if (error) return setErrors({ pop: error });
+      popFile = { fileName: pop.name, data };
+    }
     setErrors({});
     setFormError(null);
     try {
-      await notify.mutateAsync({ target: t.target, amount: parsed.minor, payerReference: ref, paidOn });
+      await notify.mutateAsync({ input: { target: t.target, amount: parsed.minor, payerReference: ref, paidOn }, pop: popFile });
       renewOpId();
-      toast("success", "Payment notification sent. Divine Freight finance will verify it against the bank statement.");
+      toast("success", `Payment notification sent${popFile ? " with proof of payment" : ""}. Divine Freight finance will verify it against the bank statement.`);
       onClose();
     } catch (err) {
       if (err instanceof DomainError && err.fieldErrors) setErrors(err.fieldErrors);
@@ -103,6 +115,37 @@ export function NotifyPaymentModal({ t, onClose }: { t: NotifyTarget | null; onC
         />
         <TextField label="Your payment reference" required value={ref} onChange={(e) => setRef(e.target.value)} error={errors.payerReference} data-testid="notify-ref" />
         <TextField label="Date paid" type="date" required max={todayISO()} value={paidOn} onChange={(e) => setPaidOn(e.target.value)} error={errors.paidOn} />
+        <div>
+          <label htmlFor="notify-pop" className="mb-1 block text-xs font-medium text-slate-700">
+            Proof of payment (optional)
+          </label>
+          <input
+            id="notify-pop"
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg"
+            data-testid="notify-pop"
+            aria-invalid={errors.pop ? true : undefined}
+            aria-describedby={errors.pop ? "notify-pop-error" : "notify-pop-hint"}
+            onChange={(e) => {
+              setPop(e.target.files?.[0] ?? null);
+              setErrors((prev) => {
+                const next = { ...prev };
+                delete next.pop;
+                return next;
+              });
+            }}
+            className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm"
+          />
+          {errors.pop ? (
+            <p id="notify-pop-error" className="mt-1 text-xs font-medium text-red-700" data-testid="notify-pop-error">
+              {errors.pop}
+            </p>
+          ) : (
+            <p id="notify-pop-hint" className="mt-1 text-xs text-slate-500">
+              Bank confirmation PDF or a screenshot (PNG/JPEG), up to 5 MB. Helps finance match your payment faster.
+            </p>
+          )}
+        </div>
         <Alert tone="info">
           No money moves in DFOS. This tells Divine Freight you have paid. Funds become available only after finance verifies the receipt.
         </Alert>
@@ -113,6 +156,7 @@ export function NotifyPaymentModal({ t, onClose }: { t: NotifyTarget | null; onC
 
 export function ClientPaymentsPanel({ d }: { d: ShipmentDetail }) {
   const [notifyFor, setNotifyFor] = useState<NotifyTarget | null>(null);
+  const [viewing, setViewing] = useState<ShipmentDocument | null>(null);
   const closed = d.shipment.stage === "closed";
   const issued = d.invoices.filter((i) => i.invoice.status === "issued");
   const totals = totalsList(d.row.finance);
@@ -188,7 +232,10 @@ export function ClientPaymentsPanel({ d }: { d: ShipmentDetail }) {
                   <Money minor={n.amount} currency={n.currency} /> · ref {n.payerReference} · paid {formatDate(n.paidOn)}
                   {n.rejectionReason && <span className="block text-xs text-red-800">{n.rejectionReason}</span>}
                 </span>
-                <NotificationStatus n={n} />
+                <span className="flex items-center gap-2">
+                  <PopLink n={n} documents={d.documents} onView={setViewing} />
+                  <NotificationStatus n={n} />
+                </span>
               </li>
             ))}
           </ul>
@@ -294,7 +341,19 @@ export function ClientPaymentsPanel({ d }: { d: ShipmentDetail }) {
         )}
       </Card>
       <NotifyPaymentModal t={notifyFor} onClose={() => setNotifyFor(null)} />
+      <DocumentViewer doc={viewing} onClose={() => setViewing(null)} />
     </div>
+  );
+}
+
+/** "Proof of payment" link for a notification, if the client attached one. */
+export function PopLink({ n, documents, onView }: { n: PaymentNotification; documents: ShipmentDocument[]; onView: (d: ShipmentDocument) => void }) {
+  const doc = n.popDocumentId ? documents.find((x) => x.id === n.popDocumentId) : undefined;
+  if (!doc) return <span className="text-xs text-slate-400">No proof attached</span>;
+  return (
+    <button type="button" onClick={() => onView(doc)} className="inline-flex items-center gap-1 text-xs font-medium text-navy-700 hover:underline" data-testid="view-pop">
+      <Paperclip className="size-3.5" aria-hidden /> Proof of payment
+    </button>
   );
 }
 

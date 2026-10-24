@@ -229,6 +229,7 @@ export function OpsFinancePage() {
                 </Link>
                 <Money minor={n.amount} currency={n.currency} />
                 <span className="text-slate-600">ref {n.payerReference} · paid {formatDate(n.paidOn)}</span>
+                {n.popDocumentId ? <Badge tone="info">Proof of payment attached</Badge> : <Badge tone="neutral">No proof attached</Badge>}
                 <NotificationStatus n={n} />
                 <LinkButton href={shipmentHref("operations", n.shipmentId, "finance")} size="sm" variant="primary" className="ml-auto">
                   Verify

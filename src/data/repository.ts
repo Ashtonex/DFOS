@@ -12,8 +12,10 @@ import { checkUpload } from "@/domain/files";
 import { DOC_TYPE_LABEL, STAGE_CLIENT_LABEL, STAGE_LABEL, EXCEPTION_CATEGORY_LABEL } from "@/domain/labels";
 import { isValidMinor, formatMoney } from "@/domain/money";
 import {
+  POP_TYPES,
   REQUIRED_DOCS_BY_CATEGORY,
   decideTransition,
+  nextLodgementReference,
   nextStage,
   requirementViews,
   todayISO,
@@ -264,7 +266,7 @@ export async function search(viewer: Viewer, query: string): Promise<SearchResul
   const clientName = new Map(snap.clients.map((c) => [c.id, c.name]));
   const out: SearchResult[] = [];
   for (const s of snap.shipments) {
-    const hay = [s.reference, s.description, clientName.get(s.clientId), s.externalReference, s.clientReference, s.origin, s.destination]
+    const hay = [s.reference, s.description, clientName.get(s.clientId), s.lodgementReference, s.externalReference, s.clientReference, s.origin, s.destination]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
@@ -549,14 +551,23 @@ export async function transitionStage(actorId: string, shipmentId: string, req: 
     if (!decision.allowed) throw new DomainError("transition_blocked", decision.message);
     const isReopen = s.stage === "closed" && data.to === "delivered";
     const patch: Partial<Shipment> = { stage: data.to };
-    if (data.to === "submitted" && data.submissionReference) patch.externalReference = data.submissionReference;
+    if (data.to === "submitted") {
+      if (!s.lodgementReference) {
+        const all = (await tx.objectStore("shipments").getAll()) as Shipment[];
+        patch.lodgementReference = nextLodgementReference(all.map((x) => x.lodgementReference));
+      }
+      if (data.submissionReference) patch.externalReference = data.submissionReference;
+    }
     const next = await touch(tx, s, patch);
+    const submittedNote =
+      `DFOS lodgement reference ${next.lodgementReference}` +
+      (next.externalReference ? `; customs reference ${next.externalReference} (manually recorded)` : "; customs reference awaited");
     const note = isReopen
       ? `Reopened: ${data.reason}`
       : decision.overrideUsed
         ? `Override: ${data.reason}`
         : data.to === "submitted"
-          ? `Submission reference ${next.externalReference} (manually recorded)`
+          ? submittedNote
           : null;
     await tx.objectStore("milestones").put({
       id: newId("ms"),
@@ -584,7 +595,7 @@ export async function transitionStage(actorId: string, shipmentId: string, req: 
         summary: `Supervisor override moving to ${STAGE_LABEL[data.to]}: ${data.reason}`,
         clientSummary: null,
       });
-    return { stage: data.to, version: next.version };
+    return { stage: data.to, version: next.version, lodgementReference: next.lodgementReference ?? null };
   });
 }
 
@@ -602,6 +613,8 @@ export async function uploadDocument(actorId: string, input: UploadInput, opId: 
   const check = checkUpload(input.fileName, input.data);
   if (!check.ok) throw new ValidationError({ file: check.error }, check.error);
   if (!DOC_TYPES.includes(input.docType)) throw new ValidationError({ docType: "Unknown document type." });
+  if (input.docType === "proof_of_payment")
+    throw new ValidationError({ docType: "Attach proof of payment when notifying the payment." });
   const fileName = input.fileName.replace(/[^\w.\- ()]/g, "_").slice(0, 120);
   return mutate(opId, async (tx) => {
     const actor = await actorOf(tx, actorId);
@@ -673,6 +686,8 @@ export async function reviewDocument(actorId: string, documentId: string, decisi
     const doc = (await tx.objectStore("documents").get(documentId)) as ShipmentDocument | undefined;
     if (!doc) throw new NotFoundError("Document");
     if (doc.status !== "pending_review") throw new DomainError("already_reviewed", "This document has already been reviewed.");
+    if (doc.docType === "proof_of_payment")
+      throw new DomainError("pop_review", "Proof of payment is reviewed by verifying or rejecting its payment notification.");
     const s = (await tx.objectStore("shipments").get(doc.shipmentId)) as Shipment;
     assertOpen(s);
     const at = nowIso();
@@ -894,10 +909,27 @@ export const notifySchema = z.object({
 });
 export type NotifyInput = z.input<typeof notifySchema>;
 
-/** Client notifies a payment. This is a CLAIM: it never becomes available funds until verified. */
-export async function notifyPayment(actorId: string, input: NotifyInput, opId: string) {
+export interface ProofOfPayment {
+  fileName: string;
+  data: ArrayBuffer;
+}
+
+/**
+ * Client notifies a payment, optionally attaching proof of payment (PDF or screenshot).
+ * This is a CLAIM: neither the notification nor its proof becomes available funds until
+ * finance verifies the receipt against the bank statement.
+ */
+export async function notifyPayment(actorId: string, input: NotifyInput, opId: string, pop?: ProofOfPayment) {
   const data = parse(notifySchema, input);
   if (data.paidOn > todayISO()) throw new ValidationError({ paidOn: "Payment date cannot be in the future." });
+  let popMime: string | null = null;
+  if (pop) {
+    const check = checkUpload(pop.fileName, pop.data);
+    if (!check.ok) throw new ValidationError({ pop: check.error }, check.error);
+    if (!POP_TYPES.includes(check.mimeType))
+      throw new ValidationError({ pop: "Proof of payment must be a PDF, PNG or JPEG (e.g. a bank confirmation or screenshot)." });
+    popMime = check.mimeType;
+  }
   return mutate(opId, async (tx) => {
     const actor = await actorOf(tx, actorId, ["client"]);
     let shipmentId: string;
@@ -915,6 +947,31 @@ export async function notifyPayment(actorId: string, input: NotifyInput, opId: s
       cur = inv.currency;
     }
     const s = await shipmentFor(tx, actor, shipmentId);
+    let popDocumentId: string | null = null;
+    if (pop && popMime) {
+      const blobId = newId("blob");
+      await tx.objectStore("blobs").put({ id: blobId, data: pop.data, mimeType: popMime });
+      popDocumentId = newId("doc");
+      const doc: ShipmentDocument = {
+        id: popDocumentId,
+        shipmentId,
+        clientId: s.clientId,
+        requirementId: null,
+        docType: "proof_of_payment",
+        fileName: pop.fileName.replace(/[^\w.\- ()]/g, "_").slice(0, 120),
+        mimeType: popMime,
+        size: pop.data.byteLength,
+        blobId,
+        uploadedById: actorId,
+        uploadedAt: nowIso(),
+        status: "pending_review",
+        reviewedById: null,
+        reviewedAt: null,
+        rejectionReason: null,
+        clientVisible: true,
+      };
+      await tx.objectStore("documents").put(doc);
+    }
     const n: PaymentNotification = {
       id: newId("pn"),
       shipmentId,
@@ -930,6 +987,7 @@ export async function notifyPayment(actorId: string, input: NotifyInput, opId: s
       resolvedById: null,
       resolvedAt: null,
       rejectionReason: null,
+      popDocumentId,
     };
     await tx.objectStore("notifications").put(n);
     await touch(tx, s);
@@ -938,11 +996,19 @@ export async function notifyPayment(actorId: string, input: NotifyInput, opId: s
       clientId: s.clientId,
       actorId,
       type: "payment.notified",
-      summary: `Client notified payment of ${formatMoney(n.amount, cur)} (ref ${n.payerReference}) — awaiting verification`,
-      clientSummary: `You notified a payment of ${formatMoney(n.amount, cur)}. Awaiting verification by Divine Freight finance.`,
+      summary: `Client notified payment of ${formatMoney(n.amount, cur)} (ref ${n.payerReference})${popDocumentId ? " with proof of payment" : ""} — awaiting verification`,
+      clientSummary: `You notified a payment of ${formatMoney(n.amount, cur)}${popDocumentId ? " with proof of payment" : ""}. Awaiting verification by Divine Freight finance.`,
     });
     return { notificationId: n.id };
   });
+}
+
+/** The proof of payment shares its notification's outcome (kept for audit either way). */
+async function resolvePop(tx: Tx, n: PaymentNotification, actorId: string, status: "accepted" | "rejected", reason: string | null) {
+  if (!n.popDocumentId) return;
+  const doc = (await tx.objectStore("documents").get(n.popDocumentId)) as ShipmentDocument | undefined;
+  if (!doc) return;
+  await tx.objectStore("documents").put({ ...doc, status, reviewedById: actorId, reviewedAt: nowIso(), rejectionReason: reason });
 }
 
 export const verifySchema = z.object({
@@ -987,6 +1053,7 @@ export async function verifyPayment(actorId: string, notificationId: string, inp
     };
     await tx.objectStore("receipts").put(r);
     await tx.objectStore("notifications").put({ ...n, status: "verified", resolvedById: actorId, resolvedAt: at });
+    await resolvePop(tx, n, actorId, "accepted", null);
     const s = (await tx.objectStore("shipments").get(n.shipmentId)) as Shipment;
     await touch(tx, s);
     const diff = data.amountReceived !== n.amount ? ` (client notified ${formatMoney(n.amount, n.currency)})` : "";
@@ -1010,6 +1077,7 @@ export async function rejectNotification(actorId: string, notificationId: string
     if (!n) throw new NotFoundError("Payment notification");
     if (n.status !== "notified") throw new DomainError("already_resolved", `This notification was already ${n.status}.`);
     await tx.objectStore("notifications").put({ ...n, status: "rejected", resolvedById: actorId, resolvedAt: nowIso(), rejectionReason: reason.trim() });
+    await resolvePop(tx, n, actorId, "rejected", reason.trim());
     await addActivity(tx, {
       shipmentId: n.shipmentId,
       clientId: n.clientId,

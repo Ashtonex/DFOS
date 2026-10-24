@@ -40,7 +40,7 @@ describe("seed data", () => {
       const i = stageIndex(s.stage);
       if (i >= stageIndex("preparation")) expect(s.assignedOfficerId, s.reference).not.toBeNull();
       if (i >= stageIndex("ready_for_submission")) expect(computeReadiness(reqs, docs).status, s.reference).toBe("complete");
-      if (i >= stageIndex("submitted")) expect(s.externalReference, s.reference).toBeTruthy();
+      if (i >= stageIndex("submitted")) expect(s.lodgementReference, s.reference).toMatch(/^DF-LDG-\d{4}-\d{4}$/);
       if (i >= stageIndex("released")) expect(hasAcceptedEvidence(docs, "release_evidence"), s.reference).toBe(true);
       if (i >= stageIndex("delivered")) expect(hasAcceptedEvidence(docs, "proof_of_delivery"), s.reference).toBe(true);
       if (s.stage === "closed") {
@@ -61,6 +61,13 @@ describe("seed data", () => {
       for (const d of docs) expect(seed.blobs.some((b) => b.id === d.blobId)).toBe(true);
       const ms = seed.milestones.filter((m) => m.shipmentId === s.id).map((m) => stageIndex(m.stage));
       expect(ms).toEqual([...ms].sort((a, b) => a - b));
+    }
+    // every notification's proof of payment exists, belongs to the same file and mirrors its outcome
+    for (const n of seed.notifications) {
+      const pop = seed.documents.find((x) => x.id === n.popDocumentId);
+      expect(pop?.docType).toBe("proof_of_payment");
+      expect(pop?.shipmentId).toBe(n.shipmentId);
+      expect(pop?.status).toBe(n.status === "notified" ? "pending_review" : n.status === "verified" ? "accepted" : "rejected");
     }
     // verified notifications each have exactly one receipt
     for (const n of seed.notifications.filter((x) => x.status === "verified"))

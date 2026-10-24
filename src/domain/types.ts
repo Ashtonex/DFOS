@@ -55,7 +55,8 @@ export interface Shipment {
   borderPost: string; // border or processing location
   assignedOfficerId: ID | null;
   stage: Stage;
-  externalReference: string | null; // e.g. customs submission reference (manually recorded)
+  lodgementReference?: string | null; // DFOS-generated on submission (internal, not a customs number)
+  externalReference: string | null; // customs-issued reference, manually recorded when received
   expectedArrival: ISODate | null;
   expectedDelivery: ISODate | null;
   clientReference: string | null; // client's PO / order ref
@@ -84,6 +85,7 @@ export const DOC_TYPES = [
   "client_authority",
   "release_evidence",
   "proof_of_delivery",
+  "proof_of_payment",
   "other",
 ] as const;
 export type DocType = (typeof DOC_TYPES)[number];
@@ -185,6 +187,8 @@ export interface PaymentNotification {
   resolvedById: ID | null;
   resolvedAt: ISODateTime | null;
   rejectionReason: string | null;
+  /** Optional client-supplied proof of payment (evidence only; never counts as funds). */
+  popDocumentId?: string | null;
 }
 
 /** Money actually confirmed as received by Divine Freight finance. */

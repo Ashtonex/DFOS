@@ -105,7 +105,7 @@ export function buildRows(snap: Snapshot, today: string): ShipmentRow[] {
       openExternalDelays: e.filter((x) => x.status === "open" && x.category === "external_delay").length,
       openTasks: t.filter((x) => x.status === "open").length,
       overdueTasks: t.filter((x) => x.status === "open" && isOverdue(x.dueDate, today)).length,
-      docsAwaitingReview: dd.filter((x) => x.status === "pending_review").length,
+      docsAwaitingReview: dd.filter((x) => x.status === "pending_review" && x.docType !== "proof_of_payment").length,
       pendingNotifications: fin.notifications.filter((n) => n.status === "notified").length,
     };
   });

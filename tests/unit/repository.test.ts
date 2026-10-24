@@ -181,6 +181,63 @@ describe("atomicity", () => {
   });
 });
 
+describe("lodgement references", () => {
+  it("are unique and sequential across files and kept when a customs reference is added later", async () => {
+    const a = await repo.transitionStage(OFFICER, "shp-0103", { to: "submitted", submissionReference: "FB-SUB-1" }, op());
+    const before = await repo.getShipmentDetail(STAFF, "shp-0103");
+    expect(before!.shipment.externalReference).toBe("FB-SUB-1");
+    const seededMax = Math.max(
+      ...(await repo.getScopedSnapshot(STAFF)).shipments
+        .filter((s) => s.id !== "shp-0103" && s.lodgementReference)
+        .map((s) => Number(s.lodgementReference!.slice(-4))),
+    );
+    expect(Number(a.lodgementReference!.slice(-4))).toBe(seededMax + 1);
+  });
+});
+
+describe("proof of payment", () => {
+  const png = () => {
+    const b = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    return b.buffer as ArrayBuffer;
+  };
+  it("is stored with the notification, visible to the client and staff only, and never counts as funds", async () => {
+    const fr = (await repo.getShipmentDetail(STAFF, "shp-0103"))!.fundingRequests[0].request;
+    const { notificationId } = await repo.notifyPayment(
+      "u-peter",
+      { target: { kind: "funding_request", fundingRequestId: fr.id }, amount: fr.amount, payerReference: "KAP-EFT-POP", paidOn: todayISO() },
+      op(),
+      { fileName: "bank-screenshot.png", data: png() },
+    );
+    const d = await repo.getShipmentDetail(STAFF, "shp-0103");
+    const n = d!.notifications.find((x) => x.id === notificationId)!;
+    expect(n.popDocumentId).toBeTruthy();
+    expect(d!.row.finance.USD!.verifiedClientFunds).toBe(0);
+    expect(d!.row.docsAwaitingReview).toBe(0); // POP is not part of the document review queue
+    const file = await repo.getDocumentFile(KAP, n.popDocumentId!);
+    expect(file.mimeType).toBe("image/png");
+    await expect(repo.getDocumentFile(EHIS, n.popDocumentId!)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(repo.reviewDocument(OPS, n.popDocumentId!, "accept")).rejects.toMatchObject({ code: "pop_review" });
+    // verifying the payment accepts the proof
+    await repo.verifyPayment(OPS, notificationId, { amountReceived: fr.amount, bankReference: "BNK-POP-1", receivedOn: todayISO() }, op());
+    const after = await repo.getShipmentDetail(STAFF, "shp-0103");
+    expect(after!.documents.find((x) => x.id === n.popDocumentId)!.status).toBe("accepted");
+  });
+
+  it("rejects non-PDF/image proof and leaves nothing behind", async () => {
+    const fr = (await repo.getShipmentDetail(STAFF, "shp-0103"))!.fundingRequests[0].request;
+    const before = (await repo.getScopedSnapshot(STAFF)).notifications.length;
+    await expect(
+      repo.notifyPayment(
+        "u-peter",
+        { target: { kind: "funding_request", fundingRequestId: fr.id }, amount: 100, payerReference: "X", paidOn: todayISO() },
+        op(),
+        { fileName: "note.txt", data: new TextEncoder().encode("paid").buffer as ArrayBuffer },
+      ),
+    ).rejects.toMatchObject({ code: "validation" });
+    expect((await repo.getScopedSnapshot(STAFF)).notifications.length).toBe(before);
+  });
+});
+
 describe("money controls", () => {
   it("a client notification never becomes available funds until verified", async () => {
     const d = await repo.getShipmentDetail(STAFF, "shp-0103"); // funding requested, nothing paid
@@ -269,9 +326,12 @@ describe("guided scenario end-to-end through the repository", () => {
     expect(computeReadiness(d!.requirements.map((r) => r.requirement), d!.documents).status).toBe("complete");
     expect(d!.requirements.find((r) => r.requirement.docType === "certificate_of_origin")!.history).toHaveLength(2); // history kept
     await repo.transitionStage(OFFICER, shipmentId, { to: "ready_for_submission" }, op());
-    // 5. submission requires a reference
-    await expect(repo.transitionStage(OFFICER, shipmentId, { to: "submitted" }, op())).rejects.toMatchObject({ code: "transition_blocked" });
-    await repo.transitionStage(OFFICER, shipmentId, { to: "submitted", submissionReference: "BB-SUB-DEMO-001" }, op());
+    // 5. submission: DFOS assigns its lodgement reference automatically; customs reference optional
+    const sub = await repo.transitionStage(OFFICER, shipmentId, { to: "submitted" }, op());
+    expect(sub.lodgementReference).toMatch(/^DF-LDG-\d{4}-\d{4}$/);
+    d = await repo.getShipmentDetail(STAFF, shipmentId);
+    expect(d!.shipment.lodgementReference).toBe(sub.lodgementReference);
+    expect(d!.shipment.externalReference).toBeNull();
     // 6. external delay -> exception + follow-up task
     const exc = await repo.recordException(OFFICER, { shipmentId, category: "external_delay", authority: "Customs processing — Beitbridge", description: "Held for inspection", ownerId: OFFICER, nextAction: "Confirm inspection slot", followUpDate: todayISO() }, op());
     await expect(repo.completeTask(OFFICER, exc.taskId)).rejects.toMatchObject({ code: "exception_open" });

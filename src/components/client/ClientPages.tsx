@@ -279,9 +279,10 @@ function ClientProgress({ d }: { d: ShipmentDetail }) {
                 ["Route", `${s.origin} → ${s.borderPost} → ${s.destination}`],
                 ["Clearance officer", d.officer?.name ?? "Being assigned"],
                 ["Documents", <ReadinessBadge key="r" r={d.row.readiness} />],
+                ["Divine Freight lodgement reference", s.lodgementReference ?? null],
                 [
-                  "Customs submission reference",
-                  s.externalReference ? `${s.externalReference} (manually recorded by Divine Freight)` : null,
+                  "Customs reference",
+                  s.externalReference ? `${s.externalReference} (recorded by Divine Freight)` : s.lodgementReference ? "Awaited from customs" : null,
                 ],
                 ["Expected arrival", formatDate(s.expectedArrival)],
                 ["Expected delivery", formatDate(s.expectedDelivery)],

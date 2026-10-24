@@ -174,6 +174,7 @@ export function buildSeed(now: Date): SeedData {
   };
 
   const ships: Record<string, Shipment> = {};
+  let lodgementSeq = 0;
 
   const ship = (spec: ShipSpec) => {
     const created = at(spec.createdDaysAgo);
@@ -189,6 +190,7 @@ export function buildSeed(now: Date): SeedData {
       borderPost: spec.borderPost,
       assignedOfficerId: spec.officerId,
       stage: spec.stage,
+      lodgementReference: null,
       externalReference: spec.extRef ?? null,
       expectedArrival: spec.eta !== undefined ? day(spec.eta) : null,
       expectedDelivery: spec.eta !== undefined ? day(spec.eta + 3) : null,
@@ -248,7 +250,10 @@ export function buildSeed(now: Date): SeedData {
         stage,
         at: i === 0 ? created : t,
         byUserId: i === 0 ? cu : (s.assignedOfficerId ?? "u-rudo"),
-        note: stage === "submitted" ? `Submission reference ${s.externalReference}` : null,
+        note:
+          stage === "submitted"
+            ? `DFOS lodgement reference ${(s.lodgementReference = `DF-LDG-${now.getFullYear()}-${String(++lodgementSeq).padStart(4, "0")}`)}; customs reference ${s.externalReference} (manually recorded)`
+            : null,
         override: false,
       });
       if (i > 0)
@@ -327,7 +332,15 @@ export function buildSeed(now: Date): SeedData {
       resolvedById: status === "notified" ? null : "u-nyasha",
       resolvedAt: status === "notified" ? null : at(daysAgo - 0.5),
       rejectionReason: null,
+      popDocumentId: null,
     };
+    // Clients attach proof of payment (a bank confirmation PDF) with their notification.
+    n.popDocumentId = addDoc(s, "proof_of_payment", status === "notified" ? "pending_review" : status === "verified" ? "accepted" : "rejected", n.notifiedAt, {
+      requirementId: null,
+      uploadedBy: n.notifiedById,
+      reviewer: "u-nyasha",
+      fileName: `${n.payerReference}-bank-confirmation.pdf`,
+    }).id;
     d.notifications.push(n);
     event(s, n.notifiedAt, n.notifiedById, "payment.notified", "Client notified a payment", "You notified a payment");
     return n;

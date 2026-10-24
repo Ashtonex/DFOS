@@ -125,8 +125,8 @@ export function ShipmentEditForm({ shipment, onDone }: { shipment: Shipment; onD
         <TextField label="Expected delivery" type="date" value={draft.expectedDelivery} onChange={set("expectedDelivery")} error={errors.expectedDelivery} />
         <TextField label="Client reference" value={draft.clientReference} onChange={set("clientReference")} error={errors.clientReference} />
         <TextField
-          label="External / submission reference"
-          hint="Manually recorded. Not an integrated customs status."
+          label="Customs reference"
+          hint="Issued by customs and manually recorded here. Not an integrated customs status."
           value={draft.externalReference}
           onChange={set("externalReference")}
           error={errors.externalReference}

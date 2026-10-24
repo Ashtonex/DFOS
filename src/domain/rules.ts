@@ -227,12 +227,8 @@ export function transitionBlockers(ctx: TransitionContext, req: TransitionReques
         });
       break;
     }
-    case "submitted": {
-      const ref = req.submissionReference?.trim() || s.externalReference?.trim();
-      if (!ref)
-        b.push({ code: "submission_reference", message: "Record the customs submission reference.", overridable: false });
-      break;
-    }
+    // "submitted": DFOS assigns its own lodgement reference automatically; the customs-issued
+    // reference is optional at this point and can be recorded when customs provides it.
     case "released":
       if (!hasAcceptedEvidence(ctx.documents, "release_evidence"))
         b.push({ code: "release_evidence", message: "Attach release evidence before marking released.", overridable: false });
@@ -282,6 +278,15 @@ export function isOverdue(dueDate: string, today: string) {
 }
 
 /** Local calendar date (YYYY-MM-DD) in the browser's time zone. */
+/** Next DFOS lodgement reference, e.g. DF-LDG-2026-0007 (sequential, never reused). */
+export function nextLodgementReference(existing: (string | null | undefined)[], year = new Date().getFullYear()) {
+  const prefix = `DF-LDG-${year}-`;
+  const max = existing.reduce((m: number, r) => (r?.startsWith(prefix) ? Math.max(m, Number(r.slice(prefix.length)) || 0) : m), 0);
+  return `${prefix}${String(max + 1).padStart(4, "0")}`;
+}
+
+export const POP_TYPES = ["application/pdf", "image/png", "image/jpeg"];
+
 export function todayISO(now = new Date()) {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;

@@ -51,8 +51,9 @@ export function WorkflowPanel({ d }: { d: ShipmentDetail }) {
 
   const next = d.next;
   const blockers = next?.blockers ?? [];
-  const needsRef = next?.stage === "submitted" && !s.externalReference;
-  const effective = blockers.filter((b) => !(b.code === "submission_reference" && subRef.trim()));
+  // Submission: DFOS assigns its own lodgement reference; the customs reference is optional.
+  const askCustomsRef = next?.stage === "submitted" && !s.externalReference;
+  const effective = blockers;
   const hard = effective.filter((b) => !b.overridable);
   const soft = effective.filter((b) => b.overridable);
   const canAdvance = writable && next && hard.length === 0 && (soft.length === 0 || (override && canOverride && reason.trim()));
@@ -60,12 +61,13 @@ export function WorkflowPanel({ d }: { d: ShipmentDetail }) {
   const run = async (to: Stage, extra: { submissionReference?: string; reason?: string; override?: boolean } = {}) => {
     setError(null);
     try {
-      await move.mutateAsync({ to, ...extra });
+      const res = await move.mutateAsync({ to, ...extra });
       renewOpId();
       setSubRef("");
       setReason("");
       setOverride(false);
-      toast("success", `Moved to ${STAGE_LABEL[to]}.`);
+      const lodgement = (res as { lodgementReference?: string | null }).lodgementReference;
+      toast("success", to === "submitted" && lodgement ? `Moved to Submitted. DFOS lodgement reference ${lodgement} assigned.` : `Moved to ${STAGE_LABEL[to]}.`);
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -117,14 +119,22 @@ export function WorkflowPanel({ d }: { d: ShipmentDetail }) {
         )}
         {writable && next && (
           <>
-            {needsRef && (
-              <TextField
-                label="Customs submission reference (manually recorded)"
-                value={subRef}
-                onChange={(e) => setSubRef(e.target.value)}
-                placeholder="e.g. BB-SUB-49001"
-                data-testid="submission-ref"
-              />
+            {next.stage === "submitted" && (
+              <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm" data-testid="lodgement-info">
+                <p>
+                  DFOS will assign a lodgement reference automatically (e.g. <span className="font-medium">DF-LDG-2026-0001</span>) when you move to Submitted.
+                </p>
+                {askCustomsRef && (
+                  <TextField
+                    label="Customs reference (optional, can be added later)"
+                    hint="Issued by customs, not DFOS. Record it here or later via Edit details."
+                    value={subRef}
+                    onChange={(e) => setSubRef(e.target.value)}
+                    placeholder="e.g. BB-SUB-49001"
+                    data-testid="submission-ref"
+                  />
+                )}
+              </div>
             )}
             {soft.length > 0 && hard.length === 0 && canOverride && (
               <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
@@ -142,7 +152,7 @@ export function WorkflowPanel({ d }: { d: ShipmentDetail }) {
               data-testid="advance-stage"
               onClick={() =>
                 run(next.stage as Stage, {
-                  submissionReference: needsRef ? subRef.trim() : undefined,
+                  submissionReference: askCustomsRef && subRef.trim() ? subRef.trim() : undefined,
                   override: soft.length > 0 ? override : undefined,
                   reason: soft.length > 0 && override ? reason : undefined,
                 })

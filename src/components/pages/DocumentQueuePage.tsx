@@ -35,7 +35,8 @@ export function DocumentQueuePage() {
   const ship = new Map(s.shipments.map((x) => [x.id, x]));
   const clientName = new Map(s.clients.map((c) => [c.id, c.shortName]));
   const reqLabel = new Map(s.requirements.map((r) => [r.id, r.label]));
-  const pending = s.documents.filter((d) => d.status === "pending_review").sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
+  // Proof of payment is reviewed with its payment notification (Funding & finance), not here.
+  const pending = s.documents.filter((d) => d.status === "pending_review" && d.docType !== "proof_of_payment").sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
   const incomplete = data.rows
     .filter((r) => r.shipment.stage !== "closed" && r.readiness.status === "incomplete")
     .sort((a, b) => a.shipment.reference.localeCompare(b.shipment.reference));

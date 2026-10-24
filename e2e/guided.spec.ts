@@ -74,12 +74,13 @@ test("G-01 guided demonstration DF-DEMO-2026-001 completes end-to-end without de
   await page.locator('[data-requirement="certificate_of_origin"]').getByTestId("accept-document").click();
   await expect(page.getByTestId("shipment-detail")).toContainText("Docs complete 5/5");
 
-  // 6 ready for submission, then submitted with a reference
+  // 6 ready for submission, then submitted: DFOS generates the lodgement reference; customs ref optional
   await advance(page, "Ready for submission");
-  await expect(page.getByTestId("advance-stage")).toBeDisabled();
-  await page.getByTestId("submission-ref").fill("BB-SUB-DEMO-0001");
+  await expect(page.getByTestId("advance-stage")).toBeEnabled();
   await page.getByTestId("advance-stage").click();
   await expect(page.getByTestId("detail-reference").locator("..")).toContainText("Submitted");
+  await expect(page.getByTestId("lodgement-ref")).toContainText(/DF-LDG-\d{4}-\d{4}/);
+  await expect(page.getByTestId("shipment-detail")).toContainText("Awaited from customs");
 
   // 7 external delay
   await goStep(page, "delay");
@@ -107,7 +108,9 @@ test("G-01 guided demonstration DF-DEMO-2026-001 completes end-to-end without de
   await page.getByTestId("notify-payment").click();
   await expect(page.getByTestId("notify-amount")).toHaveValue("2500.00");
   await page.getByTestId("notify-ref").fill("EHIS-EFT-90210");
+  await page.getByTestId("notify-pop").setInputFiles({ name: "bank-confirmation.pdf", mimeType: "application/pdf", buffer: PDF });
   await page.getByTestId("confirm-notify").click();
+  await expect(page.getByTestId("client-notifications").getByTestId("view-pop")).toBeVisible();
   await expect(page.getByTestId("client-notifications")).toContainText("Awaiting verification");
 
   // 11 verify actual receipt

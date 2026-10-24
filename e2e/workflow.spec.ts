@@ -116,7 +116,9 @@ test.describe("Slice 2 — shipment workflow", () => {
     await expect(page.getByTestId("advance-stage")).toBeDisabled(); // reason required
     await page.getByTestId("override-reason").fill("Originals sighted at supplier; scans to follow.");
     await page.getByTestId("advance-stage").click();
-    await expect(page.getByTestId("blockers")).toContainText("Record the customs submission reference.");
+    // submission is not blocked by a reference: DFOS assigns its own lodgement reference
+    await expect(page.getByTestId("workflow-panel")).toContainText("All requirements for Submitted are met.");
+    await expect(page.getByTestId("lodgement-info")).toContainText("DFOS will assign a lodgement reference automatically");
     await page.getByRole("link", { name: "Milestones" }).click();
     await expect(page.getByText("Override", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Activity" }).click();
