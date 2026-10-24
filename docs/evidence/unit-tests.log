@@ -1,0 +1,93 @@
+
+ RUN  v5.0.5 G:/work/ATMCAPPROJECTS/Divine Freight/DFOS
+
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > fundingRequested = FR1 + FR2 (cancelled FR3 excluded) 6ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > notifiedUnverified = N2 only; never counted as funds 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > verifiedClientFunds = R1 + R2 (reversed R3 and invoice R4 excluded) 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > disbursed = D1 + D2 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > clientFundsHeld = max(0, 1100.00 - 1250.00) 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > unrecoveredDisbursements = max(0, 1250.00 - 1100.00) 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > fundingOutstanding = FR1: 0 + FR2: 500.00 - 100.00 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > serviceInvoiced = INV1 lines only (draft excluded) 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > servicePaid = R4 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > invoiceOutstanding = 600.00 - 300.00 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > operationalCosts = 120.00 + 35.55 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > contribution = 600.00 - 155.55 0ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > marginBp = 44445 / 60000 = 7407.5 bp -> 7408 0ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > formats illustrative margin 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > funding request statuses derive from verified receipts, not notifications 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > an unverified notification adds nothing to available funds 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > overpayment becomes client funds held, never revenue 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > invoice overpayment is reported separately 1ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > keeps currencies separate and never aggregates them 2ms
+ ✓ tests/unit/finance.test.ts > financial acceptance fixture > portfolio totals sum per-file exposure per currency (no netting across files) 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > parses 1250 7ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > parses 1,250.5 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > parses 1,234,567.89 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > parses 0.01 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > parses   42.10  1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > parses 10000000.00 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > rejects "" 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > rejects "0" 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > rejects "0.00" 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > rejects "-5" 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > rejects "12.345" 1ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > rejects "abc" 0ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > rejects "1,23" 0ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > rejects "1e5" 0ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > rejects "10000000.01" 0ms
+ ✓ tests/unit/money.test.ts > parseMoney (major-unit input -> integer minor units) > never uses floating point (0.1 + 0.2 style inputs are exact) 1ms
+ ✓ tests/unit/money.test.ts > formatting > formats minor units with explicit currency 52ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > 1 / 8 = 1250 bp 1ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > 1 / 3 = 3333 bp 0ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > 2 / 3 = 6667 bp 0ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > -1 / 3 = -3333 bp 0ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > -2 / 3 = -6667 bp 0ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > 1 / 20000 = 1 bp 0ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > -1 / 20000 = -1 bp 0ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > 44445 / 60000 = 7408 bp 0ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > 0 / 100 = 0 bp 0ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > is undefined (null) for a zero denominator 0ms
+ ✓ tests/unit/money.test.ts > ratioBasisPoints rounding (half away from zero) > formats to one decimal percent, half away from zero 2ms
+ ✓ tests/unit/rules.test.ts > document readiness > counts missing, rejected, under review and accepted; history is preserved 41ms
+ ✓ tests/unit/rules.test.ts > document readiness > is complete only when every required document is accepted 1ms
+ ✓ tests/unit/rules.test.ts > stage transitions > only allows the next stage (no skipping, no going back) 2ms
+ ✓ tests/unit/rules.test.ts > stage transitions > missing or rejected documents block readiness (overridable by supervisor with reason) 2ms
+ ✓ tests/unit/rules.test.ts > stage transitions > submission requires an officer and a submission reference (not overridable) 1ms
+ ✓ tests/unit/rules.test.ts > stage transitions > release requires release evidence; delivery requires proof of delivery 1ms
+ ✓ tests/unit/rules.test.ts > stage transitions > closure requires resolved blocking tasks, issued invoice and financial reconciliation 2ms
+ ✓ tests/unit/rules.test.ts > stage transitions > reopening requires a supervisor and a reason 1ms
+ ✓ tests/unit/rules.test.ts > stage transitions > clients and management cannot move stages 1ms
+ ✓ tests/unit/rules.test.ts > upload safety > accepts a real PDF and text 3ms
+ ✓ tests/unit/rules.test.ts > upload safety > rejects HTML, mismatched content, empty and oversized files 1ms
+ ✓ tests/unit/seed.test.ts > seed data > is deterministic for a given seed moment (no random values) 13ms
+ ✓ tests/unit/seed.test.ts > seed data > has the required variation 35ms
+ ✓ tests/unit/seed.test.ts > seed data > satisfies its own workflow invariants 15ms
+ ✓ tests/unit/seed.test.ts > seed data > never disburses beyond verified funds unless the disbursement is flagged as pre-funded 2ms
+ ✓ tests/unit/seed.test.ts > seed data > every KPI drill-down returns exactly the counted records 3ms
+ ✓ tests/unit/repository.test.ts > persistence > seeds once, then a saved edit survives closing and reopening without reseeding 155ms
+ ✓ tests/unit/repository.test.ts > persistence > rejects stale edits (optimistic concurrency) instead of overwriting 55ms
+ ✓ tests/unit/repository.test.ts > persistence > stores document bytes and reads them back after reopen 53ms
+ ✓ tests/unit/repository.test.ts > reset > restores every entity consistently and removes demo-created records 122ms
+ ✓ tests/unit/repository.test.ts > client scoping > lists only the client's own shipments and strips internal content 40ms
+ ✓ tests/unit/repository.test.ts > client scoping > returns nothing for another client's detail route, search, or document 48ms
+ ✓ tests/unit/repository.test.ts > client scoping > blocks client mutations on other clients' records 44ms
+ ✓ tests/unit/repository.test.ts > client scoping > management persona is read-only 31ms
+ ✓ tests/unit/repository.test.ts > duplicate-submission protection > concurrent submissions with the same idempotency key create one record 44ms
+ ✓ tests/unit/repository.test.ts > duplicate-submission protection > a payment notification can be verified only once and bank references are unique 60ms
+ ✓ tests/unit/repository.test.ts > duplicate-submission protection > the guided demo shipment can only exist once 34ms
+ ✓ tests/unit/repository.test.ts > atomicity > a failure after writes inside a mutation leaves no partial business state 41ms
+ ✓ tests/unit/repository.test.ts > atomicity > a blocked transition changes nothing 57ms
+ ✓ tests/unit/repository.test.ts > money controls > a client notification never becomes available funds until verified 42ms
+ ✓ tests/unit/repository.test.ts > money controls > blocks disbursements beyond funds unless a supervisor pre-funds with a reason; refunds cannot exceed funds 39ms
+ ✓ tests/unit/repository.test.ts > money controls > rejects zero, negative and non-integer amounts 5ms
+ ✓ tests/unit/repository.test.ts > money controls > ZAR funds cannot pay a USD disbursement 40ms
+ ✓ tests/unit/repository.test.ts > money controls > receipt reversal is excluded from totals and audited 66ms
+ ✓ tests/unit/repository.test.ts > guided scenario end-to-end through the repository > runs DF-DEMO-2026-001 from client request to closure, enforcing every rule 126ms
+
+ Test Files  5 passed (5)
+      Tests  83 passed (83)
+   Start at  01:56:07
+   Duration  2.31s (tests 54%, import 35%, transform 8%, worker 4%)
+
+EXIT=0

@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/* Sidebar collapse preference is applied to <html> before first paint. */
+@custom-variant sidebar-collapsed (html[data-sidebar="collapsed"] &);
+
+@theme {
+  --color-navy-950: #0a1426;
+  --color-navy-900: #0f1f3a;
+  --color-navy-800: #172b4d;
+  --color-navy-700: #22385f;
+  --color-navy-600: #34507f;
+  --color-accent-50: #effaf8;
+  --color-accent-100: #d5f2ec;
+  --color-accent-600: #0e7c6f;
+  --color-accent-700: #0b6359;
+  --color-surface: #f5f6f8;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-surface);
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--color-accent-600);
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(10 20 38 / 0.45);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

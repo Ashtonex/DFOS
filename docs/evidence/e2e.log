@@ -1,0 +1,33 @@
+
+Running 27 tests using 1 worker
+
+  ok  1 e2e\connected.spec.ts:7:7 › Slice 4 — connected workspaces › C-01 every management KPI reconciles with its drill-down (counts and money totals) (4.7s)
+  ok  2 e2e\connected.spec.ts:38:7 › Slice 4 — connected workspaces › C-02 an Operations change appears in Management without reload (same document) (2.9s)
+  ok  3 e2e\connected.spec.ts:58:7 › Slice 4 — connected workspaces › C-03 same-browser tabs receive updates (BroadcastChannel), without reload (3.6s)
+  ok  4 e2e\connected.spec.ts:82:7 › Slice 4 — connected workspaces › C-04 switching client personas changes visible records; no cross-client leakage in lists, search, documents, routes (4.2s)
+  ok  5 e2e\foundation.spec.ts:5:7 › Foundation Gate › FG-01/FG-02 shell DOM identity retained and no document replacement across internal navigation (2.8s)
+  ok  6 e2e\foundation.spec.ts:38:7 › Foundation Gate › FG-03/FG-04 sidebar preference survives route changes and refresh (2.0s)
+  ok  7 e2e\foundation.spec.ts:69:7 › Foundation Gate › FG-05/FG-06/FG-09 edit saves, updates list and detail without reload, survives refresh (3.5s)
+  ok  8 e2e\foundation.spec.ts:111:7 › Foundation Gate › FG-07 nested routes load directly (2.1s)
+  ok  9 e2e\foundation.spec.ts:121:7 › Foundation Gate › FG-08 browser back and forward (2.2s)
+  ok 10 e2e\foundation.spec.ts:146:7 › Foundation Gate › FG-09b unsaved-change warning only when edits exist (2.4s)
+  ok 11 e2e\guided.spec.ts:28:5 › G-01 guided demonstration DF-DEMO-2026-001 completes end-to-end without developer intervention (20.7s)
+  ok 12 e2e\guided.spec.ts:190:5 › G-02 reset restores the presentation state and the scenario is repeatable (3.9s)
+  ok 13 e2e\money.spec.ts:5:7 › Slice 3 — exceptions and money › M-01 external delay: validation, exception + follow-up task, queue visibility, resolution (2.9s)
+  ok 14 e2e\money.spec.ts:32:7 › Slice 3 — exceptions and money › M-02 funding → client notification (not funds) → single verified receipt → client sees confirmation (3.8s)
+  ok 15 e2e\money.spec.ts:69:7 › Slice 3 — exceptions and money › M-03 disbursements: blocked beyond funds with useful error; recorded within funds; pre-funding creates unrecovered (2.3s)
+  ok 16 e2e\money.spec.ts:92:7 › Slice 3 — exceptions and money › M-04 service invoice: draft lines, issue, client sees issued invoice only (3.6s)
+  ok 17 e2e\storage.spec.ts:4:5 › P-01 unavailable storage produces an actionable error, not silent in-memory data (2.1s)
+  ok 18 e2e\ux.spec.ts:59:7 › R-01 mobile 360: every main route renders without horizontal overflow, with one h1 and labelled fields (9.7s)
+  ok 19 e2e\ux.spec.ts:59:7 › R-01 desktop 1280: every main route renders without horizontal overflow, with one h1 and labelled fields (13.2s)
+  ok 20 e2e\ux.spec.ts:71:5 › R-02 mobile navigation drawer opens, navigates client-side and closes; Escape closes it (1.1s)
+  ok 21 e2e\ux.spec.ts:88:5 › R-03 forms work at 360px (client request submitted from a phone-sized viewport) (1.5s)
+  ok 22 e2e\ux.spec.ts:102:5 › A-01 dialogs are keyboard operable with focus trapped and restored (2.1s)
+  ok 23 e2e\ux.spec.ts:120:5 › A-02 status is conveyed in text, not colour alone; skip-free keyboard focus is visible (1.7s)
+  ok 24 e2e\workflow.spec.ts:15:7 › Slice 2 — shipment workflow › W-01 client request: double submit creates one record, persists, appears in Operations (2.8s)
+  ok 25 e2e\workflow.spec.ts:44:7 › Slice 2 — shipment workflow › W-02 documents: validation, upload, reopen after refresh, reject with history, accept; client isolation (5.2s)
+  ok 26 e2e\workflow.spec.ts:101:7 › Slice 2 — shipment workflow › W-03 transitions: invalid moves blocked with reasons; assignment; supervisor override with audit (2.9s)
+  ok 27 e2e\workflow.spec.ts:127:7 › Slice 2 — shipment workflow › W-04 management persona is read-only on operational screens (2.0s)
+
+  27 passed (2.1m)
+EXIT=0
